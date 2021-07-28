@@ -35,8 +35,6 @@ static void notrace hook_ftrace_thunk(unsigned long ip,
 {
     struct ftrace_hook *hook = container_of(ops, struct ftrace_hook, ops);
 
-    // 假如 caller 的 instruction pointer 並不在我們這個 kernel module 的範疇內，
-    //   就將其 instruction pointer 指向我們這個 kernel module 版本的 find_ge_pid
     if (!within_module(parent_ip, THIS_MODULE))
         regs->ip = (unsigned long) hook->func;
 }
@@ -131,12 +129,6 @@ static int unhide_process(pid_t pid)
 {
     pid_node_t *proc, *tmp_proc;
     // TODO
-    /* BBB (proc, tmp_proc, &hidden_proc, list_node) {
-        DDD;
-        kfree(proc);
-    } */    
-
-    // we're here !
     list_for_each_entry_safe (proc, tmp_proc, &hidden_proc, list_node) {
         if (proc->id == pid) { 
             list_del(&(proc->list_node));
@@ -195,8 +187,6 @@ static ssize_t device_write(struct file *filep,
     memset(message, 0, len + 1);
     copy_from_user(message, buffer, len);
 
-    // add 會把某個 pid 塞進 hidden process
-    // del 會把某個 pid 塞回 原本的 list 
     if (!memcmp(message, add_message, sizeof(add_message) - 1)) {
         kstrtol(message + sizeof(add_message), 10, &pid);
         hide_process(pid);
@@ -233,25 +223,12 @@ static int _hideproc_init(void)
     dev_t dev;
     printk(KERN_INFO "@ %s\n", __func__);
 
-    // MAJOR number 是動態給定的
     err = alloc_chrdev_region(&dev, 0, MINOR_VERSION, DEVICE_NAME);
     dev_major = MAJOR(dev);
 
-
-    // THIS_MODULE 是 linux 本身的巨集
-    // 先取得 class，稍後才能使用這個 class 來創建節點
     hideproc_class = class_create(THIS_MODULE, DEVICE_NAME);
-
-    // cdev --> 字元裝置 ( character device )
-    // cdev_init --> 初始化一些 function
-    // 這時候 character device 還不會家道系統內
     cdev_init(&cdev, &fops);
-
-    // 將一個 character device 加到系統內
     cdev_add(&cdev, MKDEV(dev_major, MINOR_VERSION), 1);
-
-    // 使用剛剛取得的 class，在 /dev 創建節點
-    // MKDEV(major number, minor number) --> 使用 major number & minor number 來取得 dev_t
     device_create(hideproc_class, NULL, MKDEV(dev_major, MINOR_VERSION), NULL,
                   DEVICE_NAME);
 

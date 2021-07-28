@@ -302,25 +302,11 @@ static int _hideproc_init(void)
     dev_t dev;
     printk(KERN_INFO "@ %s\n", __func__);
 
-    // MAJOR number 是動態給定的
     err = alloc_chrdev_region(&dev, 0, MINOR_VERSION, DEVICE_NAME);
     dev_major = MAJOR(dev);
-
-
-    // THIS_MODULE 是 linux 本身的巨集
-    // 先取得 class，稍後才能使用這個 class 來創建節點
     hideproc_class = class_create(THIS_MODULE, DEVICE_NAME);
-
-    // cdev --> 字元裝置 ( character device )
-    // cdev_init --> 初始化一些 function
-    // 這時候 character device 還不會家道系統內
     cdev_init(&cdev, &fops);
-
-    // 將一個 character device 加到系統內
     cdev_add(&cdev, MKDEV(dev_major, MINOR_VERSION), 1);
-
-    // 使用剛剛取得的 class，在 /dev 創建節點
-    // MKDEV(major number, minor number) --> 使用 major number & minor number 來取得 dev_t
     device_create(hideproc_class, NULL, MKDEV(dev_major, MINOR_VERSION), NULL,
                   DEVICE_NAME);
 
@@ -333,7 +319,6 @@ static void _hideproc_exit(void)
 {
     printk(KERN_INFO "@ %s\n", __func__);
     hook_remove(&hook);    
-    /* FIXME: ensure the release of all allocated resources */
 }
 
 module_init(_hideproc_init);
